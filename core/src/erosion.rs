@@ -5,7 +5,7 @@
 use alloc::collections::BinaryHeap;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::cmp::Ordering;
+use core::cmp::Reverse;
 use serde::{Deserialize, Serialize};
 
 use crate::Seed;
@@ -58,27 +58,37 @@ pub struct Drainage {
     pub flow_m3_per_year: Vec<f64>,
 }
 
+struct Routes {
+    surface: Vec<f64>,
+    receiver: Vec<usize>,
+    downhill: Vec<usize>,
+    area_m2: Vec<f64>,
+}
+
 impl Drainage {
     pub fn lake_depth(&self, landscape: &Landscape, i: usize) -> f64 {
         self.surface[i] - landscape.height[i]
     }
 }
 
-#[derive(PartialEq)]
-struct Lowest(f64, usize);
-
-impl Eq for Lowest {}
-
-impl PartialOrd for Lowest {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+fn lowest_first(level: f64, i: usize) -> Reverse<u128> {
+    let bits = level.to_bits();
+    let ordered = if bits >> 63 == 1 {
+        !bits
+    } else {
+        bits | 1 << 63
+    };
+    Reverse(u128::from(ordered) << 64 | i as u128)
 }
 
-impl Ord for Lowest {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.0.total_cmp(&self.0).then(other.1.cmp(&self.1))
-    }
+fn level_of(key: Reverse<u128>) -> (f64, usize) {
+    let ordered = (key.0 >> 64) as u64;
+    let bits = if ordered >> 63 == 1 {
+        ordered & !(1 << 63)
+    } else {
+        !ordered
+    };
+    (f64::from_bits(bits), key.0 as u64 as usize)
 }
 
 const NEIGHBOURS: [(i64, i64); 8] = [
@@ -121,20 +131,21 @@ impl Landscape {
     fn flooded(&self) -> Vec<f64> {
         let mut surface = self.height.clone();
         let mut done = vec![false; surface.len()];
-        let mut open = BinaryHeap::new();
+        let mut open = BinaryHeap::with_capacity(surface.len());
         for (i, &fixed) in self.fixed.iter().enumerate() {
             if fixed {
                 done[i] = true;
-                open.push(Lowest(surface[i], i));
+                open.push(lowest_first(surface[i], i));
             }
         }
         let rise = FLOOD_RISE_PER_METRE * self.cell_metres;
-        while let Some(Lowest(level, i)) = open.pop() {
+        while let Some(key) = open.pop() {
+            let (level, i) = level_of(key);
             for (j, _) in self.neighbours(i) {
                 if !done[j] {
                     done[j] = true;
                     surface[j] = surface[j].max(level + rise);
-                    open.push(Lowest(surface[j], j));
+                    open.push(lowest_first(surface[j], j));
                 }
             }
         }
@@ -157,7 +168,13 @@ impl Landscape {
         ))
     }
 
-    pub fn drainage(&self, rain_m_per_year: &[f64]) -> Drainage {
+    fn rhos(&self) -> Vec<f64> {
+        (0..self.height.len())
+            .map(|i| if self.fixed[i] { 0.0 } else { self.rho(i) })
+            .collect()
+    }
+
+    fn routes(&self, rho: &[f64]) -> Routes {
         let surface = self.flooded();
         let cells = surface.len();
         let mut receiver: Vec<usize> = (0..cells).collect();
@@ -165,7 +182,7 @@ impl Landscape {
             if self.fixed[i] {
                 continue;
             }
-            let diagonal = (2.0 - self.rho(i)) * self.cell_metres;
+            let diagonal = (2.0 - rho[i]) * self.cell_metres;
             let mut steepest = 0.0;
             for (j, distance) in self.neighbours(i) {
                 let run = if distance > self.cell_metres {
@@ -180,34 +197,51 @@ impl Landscape {
                 }
             }
         }
-        let mut order: Vec<usize> = (0..cells).collect();
-        order.sort_by(|&a, &b| surface[b].total_cmp(&surface[a]).then(a.cmp(&b)));
+        let mut downhill: Vec<usize> = (0..cells).collect();
+        downhill.sort_unstable_by(|&a, &b| surface[b].total_cmp(&surface[a]).then(a.cmp(&b)));
         let cell_area = self.cell_metres * self.cell_metres;
         let mut area_m2 = vec![cell_area; cells];
+        for &i in &downhill {
+            let r = receiver[i];
+            if r != i {
+                area_m2[r] += area_m2[i];
+            }
+        }
+        Routes {
+            surface,
+            receiver,
+            downhill,
+            area_m2,
+        }
+    }
+
+    pub fn drainage(&self, rain_m_per_year: &[f64]) -> Drainage {
+        let routes = self.routes(&self.rhos());
+        let cell_area = self.cell_metres * self.cell_metres;
         let mut flow_m3_per_year: Vec<f64> = rain_m_per_year
             .iter()
             .map(|rain| rain * cell_area)
             .collect();
-        for &i in &order {
-            let r = receiver[i];
+        for &i in &routes.downhill {
+            let r = routes.receiver[i];
             if r != i {
-                area_m2[r] += area_m2[i];
                 flow_m3_per_year[r] += flow_m3_per_year[i];
             }
         }
         Drainage {
-            receiver,
-            surface,
-            area_m2,
+            receiver: routes.receiver,
+            surface: routes.surface,
+            area_m2: routes.area_m2,
             flow_m3_per_year,
         }
     }
 
     pub fn evolve(&mut self, uplift_m_per_year: &[f64], laws: Laws, years: f64, step_years: f64) {
+        let rho = self.rhos();
         let mut elapsed = 0.0;
         while elapsed < years {
             let dt = step_years.min(years - elapsed);
-            self.step(uplift_m_per_year, laws, dt);
+            self.step(uplift_m_per_year, laws, dt, &rho);
             elapsed += dt;
         }
     }
@@ -226,9 +260,10 @@ impl Landscape {
         let mut since_best = 0;
         let mut steps = 0;
         let mut previous = f64::INFINITY;
+        let rho = self.rhos();
         loop {
             let before = self.height.clone();
-            self.step(uplift_m_per_year, laws, step_years);
+            self.step(uplift_m_per_year, laws, step_years, &rho);
             steps += 1;
             let change = self
                 .height
@@ -264,7 +299,7 @@ impl Landscape {
         }
     }
 
-    fn step(&mut self, uplift_m_per_year: &[f64], laws: Laws, dt: f64) {
+    fn step(&mut self, uplift_m_per_year: &[f64], laws: Laws, dt: f64, rho: &[f64]) {
         let before = self.height.clone();
         for ((height, &fixed), &uplift) in self
             .height
@@ -276,25 +311,19 @@ impl Landscape {
                 *height += uplift * dt;
             }
         }
-        let rain = vec![1.0; self.height.len()];
-        self.incise(&self.drainage(&rain), laws, dt);
+        let routes = self.routes(rho);
+        self.incise(&routes, laws, dt);
         self.creep(laws, dt, before);
     }
 
-    fn incise(&mut self, drainage: &Drainage, laws: Laws, dt: f64) {
-        let mut order: Vec<usize> = (0..self.height.len()).collect();
-        order.sort_by(|&a, &b| {
-            drainage.surface[a]
-                .total_cmp(&drainage.surface[b])
-                .then(a.cmp(&b))
-        });
+    fn incise(&mut self, drainage: &Routes, laws: Laws, dt: f64) {
         let lake: Vec<bool> = drainage
             .surface
             .iter()
             .zip(&self.height)
             .map(|(surface, height)| surface > height)
             .collect();
-        for &i in &order {
+        for &i in drainage.downhill.iter().rev() {
             let r = drainage.receiver[i];
             if self.fixed[i] || r == i || lake[i] {
                 continue;
@@ -341,6 +370,20 @@ impl Landscape {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flood_keys_order_like_total_cmp_then_index_and_round_trip() {
+        let levels = [-1e9, -2.5, -0.0, 0.0, 1e-300, 3.0, 3.0, 7e5, f64::INFINITY];
+        let keys: Vec<_> = levels.iter().enumerate().map(|(i, &l)| (l, i)).collect();
+        for &(a, i) in &keys {
+            assert_eq!(level_of(lowest_first(a, i)).0.to_bits(), a.to_bits());
+            assert_eq!(level_of(lowest_first(a, i)).1, i);
+            for &(b, j) in &keys {
+                let wanted = b.total_cmp(&a).then(j.cmp(&i));
+                assert_eq!(lowest_first(a, i).cmp(&lowest_first(b, j)), wanted);
+            }
+        }
+    }
 
     fn ramp(columns: usize, rows: usize, cell_metres: f64) -> Landscape {
         let mut height = vec![0.0; columns * rows];
