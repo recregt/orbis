@@ -1,0 +1,18 @@
+[package]
+name = "orbis"
+description = "Pure, deterministic planet simulation"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+libm = "0.2.16"
+serde = { version = "1.0.229", default-features = false, features = ["alloc", "derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.154"
+
+[lints]
+workspace = true

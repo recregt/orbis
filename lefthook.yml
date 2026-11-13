@@ -13,8 +13,8 @@ pre-commit:
 pre-push:
   commands:
     no-std:
-      run: cargo build -q --lib --target x86_64-unknown-none
+      run: cargo build -q -p orbis --lib --target x86_64-unknown-none
     clippy:
-      run: cargo clippy --all-targets -- -D warnings -F clippy::allow_attributes_without_reason
+      run: cargo clippy --workspace --all-targets -- -D warnings -F clippy::allow_attributes_without_reason
     test:
-      run: cargo test -q --no-fail-fast
+      run: cargo test -q --workspace --no-fail-fast
