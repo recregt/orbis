@@ -29,6 +29,7 @@ pub const ICE_EDGE_ANNUAL_MEAN_CELSIUS: f64 = -10.0;
 pub const OCEAN_MIXED_LAYER_METRES: f64 = 50.0;
 pub const SETTLED_KELVIN: f64 = 0.01;
 pub const YEARS_AT_MOST: u32 = 200;
+pub const SPIN_UP_YEARS_AT_MOST: u32 = 2000;
 pub const OVERTURNING_LAYERS: f64 = 2.0;
 
 const PASCALS_PER_HECTOPASCAL: f64 = 100.0;
@@ -386,6 +387,16 @@ impl EnergyBalance<'_> {
         from: Option<&SeasonalCycle>,
         parallel: &dyn ForEach<Budget>,
     ) -> SeasonalCycle {
+        self.run_within(exchanged, from, parallel, SETTLED_KELVIN)
+    }
+
+    pub fn run_within(
+        &self,
+        exchanged: &Exchanged,
+        from: Option<&SeasonalCycle>,
+        parallel: &dyn ForEach<Budget>,
+        settled_kelvin: f64,
+    ) -> SeasonalCycle {
         let grid = self.grid;
         let cells = grid.len();
         let width = grid.width as usize;
@@ -660,7 +671,7 @@ impl EnergyBalance<'_> {
             }
             0
         } else {
-            YEARS_AT_MOST
+            SPIN_UP_YEARS_AT_MOST
         };
         for _ in 0..spin_up_years {
             let (ground_before, air_before) = (ground.clone(), air_celsius.clone());
@@ -809,7 +820,7 @@ impl EnergyBalance<'_> {
                         .iter()
                         .zip(&mean)
                         .chain(ground_before.iter().zip(&ground_mean))
-                        .all(|(a, b)| (a - b).abs() < SETTLED_KELVIN)
+                        .all(|(a, b)| (a - b).abs() < settled_kelvin)
                 });
             let mut cap = Transport::default();
             let mut northward = Vec::with_capacity(gained.len());

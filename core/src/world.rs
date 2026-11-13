@@ -176,6 +176,8 @@ pub struct Residual {
 }
 
 const ROUNDS_WITHOUT_PROGRESS: usize = 4;
+const LOOSEST_ROUND_KELVIN: f64 = 10.0 * SETTLED_KELVIN;
+const ROUND_TOLERANCE_PER_CHANGE: f64 = 0.1;
 
 fn halfway(given: &mut [f64], answered: &[f64]) {
     for (value, &next) in given.iter_mut().zip(answered) {
@@ -463,7 +465,8 @@ impl WorldSpec {
         let precision = SETTLED_KELVIN / radiative.mean_kelvin;
         let mut humidity = vec![[1.0; LAYERS]; coarse_ocean.len()];
         let mut wetness = vec![1.0; coarse_ocean.len()];
-        let mut previous = energy.run(
+        let mut tolerance = LOOSEST_ROUND_KELVIN;
+        let mut previous = energy.run_within(
             &Exchanged {
                 currents: &Currents::still(coarse_ocean.len()),
                 layer_humidity: &humidity,
@@ -472,12 +475,13 @@ impl WorldSpec {
             },
             None,
             parallel,
+            tolerance,
         );
         let mut speed = previous.wind_metres_per_second;
         let mut residuals: Vec<Residual> = Vec::new();
         let (seasons, climate, fine, winds, currents, settled) = loop {
             let currents = driven_by(speed);
-            let seasons = energy.run(
+            let seasons = energy.run_within(
                 &Exchanged {
                     currents: &currents,
                     layer_humidity: &humidity,
@@ -486,6 +490,7 @@ impl WorldSpec {
                 },
                 Some(&previous),
                 parallel,
+                tolerance,
             );
             let winds = Winds {
                 planet,
@@ -533,7 +538,7 @@ impl WorldSpec {
                 .unwrap_or(0);
             let stalled = residuals.len() - 1 - best_round >= ROUNDS_WITHOUT_PROGRESS;
             let next = (speed + answered) / 2.0;
-            let settled = residual.kelvin <= 1.0;
+            let settled = residual.kelvin <= 1.0 && tolerance <= SETTLED_KELVIN;
             if settled || stalled {
                 break (seasons, climate, fine, winds, currents, settled);
             }
@@ -542,6 +547,8 @@ impl WorldSpec {
                 row_means(&climate.coarse_layer_humidity, blocks.width).as_flattened(),
             );
             halfway(&mut wetness, &climate.coarse_wetness);
+            tolerance = (residual.kelvin * SETTLED_KELVIN * ROUND_TOLERANCE_PER_CHANGE)
+                .clamp(SETTLED_KELVIN, LOOSEST_ROUND_KELVIN);
             previous = seasons;
             speed = next;
         };
