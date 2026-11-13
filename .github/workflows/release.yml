@@ -34,4 +34,4 @@ jobs:
       - run: npm install --global npm@11
       - run: cargo test --workspace
       - working-directory: wasm
-        run: npm publish --access public
+        run: npm stage publish . --access public
