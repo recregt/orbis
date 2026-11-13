@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 
 use crate::life::{Cover, Flora};
-use crate::world::{GlobalMap, Recipe};
+use crate::world::{GlobalMap, Recipe, Terrain};
 
 pub const PERSON_HEIGHT_METRES: f64 = 1.7;
 const MILLIMETRES_PER_METRE: f64 = 1000.0;
@@ -85,12 +85,35 @@ impl Atlas {
                 }
             })
             .collect();
+        Self::laid_out(map.width, map.height, recipe, places)
+    }
+
+    pub fn of_terrain(width: u32, height: u32, terrains: &[Terrain], recipe: &Recipe) -> Self {
+        let places = terrains
+            .iter()
+            .map(|&terrain| Place {
+                ground: match terrain {
+                    Terrain::Ocean { .. } => Ground::Water,
+                    Terrain::Land { .. } => Ground::Sand,
+                },
+                forest: false,
+                celsius: 0.0,
+                summer_celsius: 0.0,
+                metres: recipe.surface_metres(terrain),
+                rain_m_per_year: 0.0,
+                ipse: 0.0,
+            })
+            .collect();
+        Self::laid_out(width, height, recipe, places)
+    }
+
+    fn laid_out(width: u32, height: u32, recipe: &Recipe, places: Vec<Place>) -> Self {
         let equator_metres = recipe.equator_km * METRES_PER_KILOMETRE;
         Self {
-            width: map.width,
-            height: map.height,
-            cell_metres: equator_metres / f64::from(map.width),
-            row_metres: equator_metres / 2.0 / f64::from(map.height),
+            width,
+            height,
+            cell_metres: equator_metres / f64::from(width),
+            row_metres: equator_metres / 2.0 / f64::from(height),
             places,
         }
     }

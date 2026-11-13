@@ -393,6 +393,14 @@ impl WorldSpec {
         }
     }
 
+    pub fn terrains(&self) -> Vec<Terrain> {
+        let elevations: Vec<f64> = self
+            .positions()
+            .map(|(x, y)| self.elevation(x, y))
+            .collect();
+        self.terrain(&elevations)
+    }
+
     pub fn generate<P: Parallel>(
         &self,
         materials: &Materials,
@@ -861,6 +869,32 @@ mod tests {
         map.cells
             .iter()
             .filter(|c| matches!(c.terrain, Terrain::Land { .. }))
+    }
+
+    #[test]
+    fn terrain_alone_shapes_the_ground_exactly_as_the_full_world_does() {
+        let map = generate(3);
+        let spec = spec(3);
+        let terrains = spec.terrains();
+        assert!(
+            map.cells
+                .iter()
+                .zip(&terrains)
+                .all(|(cell, t)| cell.terrain == *t)
+        );
+        let full = crate::atlas::Atlas::of(map, &earth::flora(), &spec.recipe);
+        let shape =
+            crate::atlas::Atlas::of_terrain(spec.width, spec.height, &terrains, &spec.recipe);
+        assert_eq!(
+            (full.cell_metres, full.row_metres),
+            (shape.cell_metres, shape.row_metres)
+        );
+        assert!(
+            full.places
+                .iter()
+                .zip(&shape.places)
+                .all(|(a, b)| a.metres == b.metres)
+        );
     }
 
     #[test]
