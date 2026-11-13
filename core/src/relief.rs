@@ -11,6 +11,7 @@ use crate::Seed;
 use crate::atlas::Atlas;
 use crate::erosion::{Drainage, FLATTEST_SLOPE, Landscape, Laws, Routing, Settling};
 use crate::hash::{Purpose, lattice, unit};
+use crate::material::Material;
 
 pub const PLANET_REFINEMENT: usize = 16;
 pub const REGION_CELLS: usize = 256;
@@ -32,6 +33,16 @@ pub struct Rock {
 }
 
 impl Rock {
+    pub fn of(material: &Material) -> Self {
+        Self {
+            laws: Laws {
+                erodibility: material.erodibility_per_year,
+                creep_m2_per_year: material.creep_m2_per_year,
+            },
+            relief_erosion_per_year: material.relief_erosion_per_year,
+        }
+    }
+
     fn uplift(&self, metres_above_sea: f64) -> f64 {
         self.relief_erosion_per_year * metres_above_sea.max(0.0)
     }
