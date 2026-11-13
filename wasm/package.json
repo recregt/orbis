@@ -1,0 +1,24 @@
+{
+  "name": "@recregt/orbis",
+  "version": "0.1.0",
+  "description": "Pure, deterministic planet simulation, compiled to WebAssembly",
+  "license": "MPL-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./pkg/orbis.d.ts",
+      "default": "./pkg/orbis.js"
+    }
+  },
+  "files": [
+    "pkg/orbis.js",
+    "pkg/orbis.d.ts",
+    "pkg/orbis_bg.wasm",
+    "pkg/orbis_bg.wasm.d.ts"
+  ],
+  "scripts": {
+    "build": "cargo build -p orbis-wasm --release --target wasm32-unknown-unknown && wasm-bindgen --target web --out-dir pkg --out-name orbis ../target/wasm32-unknown-unknown/release/orbis_wasm.wasm",
+    "prepack": "npm run build"
+  }
+}
