@@ -179,9 +179,12 @@ const ROUNDS_WITHOUT_PROGRESS: usize = 4;
 const LOOSEST_ROUND_KELVIN: f64 = 10.0 * SETTLED_KELVIN;
 const ROUND_TOLERANCE_PER_CHANGE: f64 = 0.1;
 
-fn halfway(given: &mut [f64], answered: &[f64]) {
+const MOISTURE_STEP_AT_MOST: f64 = 0.5;
+const MOISTURE_STEP_AT_LEAST: f64 = 1.0 / 16.0;
+
+fn relax(given: &mut [f64], answered: &[f64], step: f64) {
     for (value, &next) in given.iter_mut().zip(answered) {
-        *value = (*value + next) / 2.0;
+        *value += step * (next - *value);
     }
 }
 
@@ -466,6 +469,7 @@ impl WorldSpec {
         let mut humidity = vec![[1.0; LAYERS]; coarse_ocean.len()];
         let mut wetness = vec![1.0; coarse_ocean.len()];
         let mut tolerance = LOOSEST_ROUND_KELVIN;
+        let mut moisture_step = MOISTURE_STEP_AT_MOST;
         let mut previous = energy.run_within(
             &Exchanged {
                 currents: &Currents::still(coarse_ocean.len()),
@@ -542,11 +546,19 @@ impl WorldSpec {
             if settled || stalled {
                 break (seasons, climate, fine, winds, currents, settled);
             }
-            halfway(
+            if let [.., before, now] = residuals.as_slice() {
+                moisture_step = if now.humidity > before.humidity {
+                    (moisture_step / 2.0).max(MOISTURE_STEP_AT_LEAST)
+                } else {
+                    (moisture_step * 1.25).min(MOISTURE_STEP_AT_MOST)
+                };
+            }
+            relax(
                 humidity.as_flattened_mut(),
                 row_means(&climate.coarse_layer_humidity, blocks.width).as_flattened(),
+                moisture_step,
             );
-            halfway(&mut wetness, &climate.coarse_wetness);
+            relax(&mut wetness, &climate.coarse_wetness, moisture_step);
             tolerance = (residual.kelvin * SETTLED_KELVIN * ROUND_TOLERANCE_PER_CHANGE)
                 .clamp(SETTLED_KELVIN, LOOSEST_ROUND_KELVIN);
             previous = seasons;
