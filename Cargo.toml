@@ -6,6 +6,7 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.99"
 license = "MPL-2.0"
+repository = "https://github.com/recregt/orbis"
 
 [workspace.lints.clippy]
 self_named_module_files = "deny"

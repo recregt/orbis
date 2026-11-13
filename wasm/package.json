@@ -3,6 +3,20 @@
   "version": "0.1.0",
   "description": "Pure, deterministic planet simulation, compiled to WebAssembly",
   "license": "MPL-2.0",
+  "homepage": "https://recregt.com/tools/orbis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/recregt/orbis.git",
+    "directory": "wasm"
+  },
+  "keywords": [
+    "planet",
+    "simulation",
+    "climate",
+    "procedural",
+    "terrain",
+    "wasm"
+  ],
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -19,6 +33,6 @@
   ],
   "scripts": {
     "build": "cargo build -p orbis-wasm --release --target wasm32-unknown-unknown && wasm-bindgen --target web --out-dir pkg --out-name orbis ../target/wasm32-unknown-unknown/release/orbis_wasm.wasm",
-    "prepack": "npm run build"
+    "prepack": "cp ../README.md ../LICENSE . && npm run build"
   }
 }

@@ -1,3 +1,5 @@
 /target
 /wasm/pkg
 node_modules
+/wasm/README.md
+/wasm/LICENSE
