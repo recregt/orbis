@@ -28,7 +28,6 @@ fn floats(values: impl Iterator<Item = f64>) -> Vec<f32> {
     values.map(|value| value as f32).collect()
 }
 
-/// The ground alone: available at once, without waiting for the climate.
 #[wasm_bindgen]
 pub struct Shape {
     seed: Seed,
@@ -66,7 +65,6 @@ impl Shape {
         self.atlas.height
     }
 
-    /// Surface height of each cell in metres, negative under the sea.
     pub fn elevation(&self) -> Vec<f32> {
         floats(
             self.terrains
@@ -75,12 +73,10 @@ impl Shape {
         )
     }
 
-    /// The eroded planet-wide height field, `reliefWidth × reliefHeight`, row 0 north.
     pub fn relief(&mut self) -> Vec<f32> {
         floats(self.planet().land.height.iter().copied())
     }
 
-    /// Area draining through each relief cell, in square metres.
     #[wasm_bindgen(js_name = drainageArea)]
     pub fn drainage_area(&mut self) -> Vec<f32> {
         let land = &self.planet().land;
@@ -89,6 +85,16 @@ impl Shape {
                 .area_m2
                 .into_iter(),
         )
+    }
+
+    #[wasm_bindgen(js_name = drainageReceivers)]
+    pub fn drainage_receivers(&mut self) -> Vec<u32> {
+        let land = &self.planet().land;
+        land.drainage(&vec![1.0; land.height.len()])
+            .receiver
+            .into_iter()
+            .map(|r| r as u32)
+            .collect()
     }
 
     #[wasm_bindgen(getter, js_name = reliefWidth)]
@@ -116,7 +122,6 @@ impl Shape {
         self.level().spacing_metres()
     }
 
-    /// Heights of the detailed region tile `(i, j)`, `regionCells` square.
     pub fn region(&mut self, i: i64, j: i64, rain_m_per_year: f64) -> Vec<f32> {
         let (seed, rock, level) = (self.seed, self.rock, self.level());
         let planet = self.planet();
@@ -137,7 +142,6 @@ impl Shape {
         earth::heavens().sky(self.recipe.orbit).year_seconds() / 86_400.0
     }
 
-    /// Latitude where the sun stands overhead, in degrees, at a fraction of the year.
     #[wasm_bindgen(js_name = sunDeclination)]
     pub fn sun_declination(&self, year_fraction: f64) -> f64 {
         let heavens = earth::heavens();
@@ -178,7 +182,6 @@ pub enum Layer {
     AetherWarming,
 }
 
-/// The settled climate of a world.
 #[wasm_bindgen]
 pub struct World {
     recipe: Recipe,
@@ -212,7 +215,6 @@ impl World {
         self.map.height
     }
 
-    /// Whether the climate and its winds reached a steady state.
     #[wasm_bindgen(getter)]
     pub fn settled(&self) -> bool {
         self.map.coupling.settled && self.map.energy_settled
@@ -228,7 +230,6 @@ impl World {
         self.map.coupling.wind_metres_per_second
     }
 
-    /// Cover codes: 0 sea, 1 sea ice, 2 land ice, 3 barren, 4 + n the n-th plant.
     pub fn layer(&self, layer: Layer) -> Vec<f32> {
         floats(self.map.cells.iter().map(|cell| match layer {
             Layer::Elevation => self.recipe.surface_metres(cell.terrain),
@@ -250,7 +251,6 @@ impl World {
         }))
     }
 
-    /// Direction of the surface wind at a latitude, as `[east, north]`.
     #[wasm_bindgen(js_name = surfaceWind)]
     pub fn surface_wind(&self, north_degrees: f64) -> Vec<f64> {
         let flow = wind::layer_flow(0, -north_degrees / 90.0, &self.map.belts);

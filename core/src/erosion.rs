@@ -258,6 +258,7 @@ impl Landscape {
         let settled = SETTLED_SHARE_OF_UPLIFT * mean_uplift;
         let mut best = f64::INFINITY;
         let mut since_best = 0;
+        let mut falling = false;
         let mut steps = 0;
         let mut previous = f64::INFINITY;
         let rho = self.rhos();
@@ -286,6 +287,10 @@ impl Landscape {
             };
             if change <= settled && still_to_come <= settled {
                 return settling(true);
+            }
+            falling |= steps > 1 && ratio < 1.0;
+            if !falling {
+                continue;
             }
             if change < best {
                 best = change;
