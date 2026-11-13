@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 pub const LAPSE_RATE_CELSIUS_PER_METRE: f64 = 0.0065;
 pub const VAPOR_SCALE_HEIGHT_METRES: f64 = 2000.0;
 pub const SECONDS_PER_DAY: f64 = 86_400.0;
