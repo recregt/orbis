@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn the_ground_spends_what_the_free_air_leaves_of_the_north_south_work() {
-        let air = crate::material::air();
+        let air = crate::earth::air();
         let work = 5.0;
         let ground = ground_friction_w_per_m2(work, &air);
         assert_eq!(ground, work * (1.0 - air.free_air_dissipation_share));

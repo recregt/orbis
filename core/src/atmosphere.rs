@@ -1074,7 +1074,7 @@ impl Atmosphere<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::material::water;
+    use crate::earth::water;
     use crate::scale::SECONDS_PER_DAY;
 
     const CIRCULATION: Circulation = Circulation {
@@ -1138,7 +1138,7 @@ mod tests {
     fn the_atmospheric_equatorial_width_matches_earths_observed_scale() {
         let width_km = wind::equatorial_width_metres(
             &wind::EARTH_WINDS.planet,
-            &crate::material::air(),
+            &crate::earth::air(),
             EARTH_MEAN_KELVIN,
         ) / 1000.0;
         assert!((1000.0..1600.0).contains(&width_km), "{width_km} km");
@@ -1171,7 +1171,7 @@ mod tests {
 
     #[test]
     fn moist_warm_air_warms_the_upper_layers_and_cold_air_keeps_the_stirred_lapse() {
-        let (air, water) = (crate::material::air(), water());
+        let (air, water) = (crate::earth::air(), water());
         let stirred =
             |surface: f64| surface - LAPSE_RATE_CELSIUS_PER_METRE * TROPOSPHERE[1].middle_metres();
         let tropical = profile(27.0, 0.8, &air, &water);
@@ -1184,7 +1184,7 @@ mod tests {
 
     #[test]
     fn a_lifted_parcel_keeps_its_moist_static_energy() {
-        let (air, water) = (crate::material::air(), water());
+        let (air, water) = (crate::earth::air(), water());
         let (surface, relative) = (25.0, 0.8);
         let parcel = moist_parcel_celsius(surface, relative, 2, &air, &water);
         let carried = air.specific_heat * surface
@@ -1433,7 +1433,7 @@ mod tests {
         };
         let grid = world.grid();
         let material = water();
-        let air = crate::material::air();
+        let air = crate::earth::air();
         let humidity = vec![[0.8; LAYERS]; cells];
         let atmosphere = Atmosphere {
             seasons: Some(Seasons {

@@ -10,6 +10,7 @@ pub mod atlas;
 pub mod atmosphere;
 pub mod climate;
 pub mod cycle;
+pub mod earth;
 pub mod energy;
 pub mod erosion;
 pub mod hash;

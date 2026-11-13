@@ -851,9 +851,9 @@ impl EnergyBalance<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::material::test_materials;
+    use crate::earth;
     use crate::ocean::{Ocean, equatorial_width_metres};
-    use crate::sky::{Companion, EARTH_ORBIT, Heavens, sun_alone};
+    use crate::sky::{Companion, Heavens};
     use crate::wind::{Belts, EARTH_WINDS};
 
     struct Planet {
@@ -875,7 +875,7 @@ mod tests {
                 ocean: (0..cells as u32)
                     .map(|i| !land(i % width, i / width))
                     .collect(),
-                heavens: sun_alone(),
+                heavens: earth::heavens(),
                 layer_humidity: EARTH_LAYER_HUMIDITY,
             }
         }
@@ -894,8 +894,8 @@ mod tests {
                 ocean: &self.ocean,
                 sun_latitude: 0.0,
             };
-            let sky = self.heavens.sky(EARTH_ORBIT);
-            let materials = test_materials();
+            let sky = self.heavens.sky(earth::ORBIT);
+            let materials = earth::materials();
             let balance = EnergyBalance {
                 grid: &grid,
                 cell_metres: TAU * EARTH_RADIUS_METRES / f64::from(self.width),
@@ -1023,7 +1023,7 @@ mod tests {
         lit.heavens.companions.push(Companion {
             name: "ember".into(),
             luminosity_watts: 1.0e3 * sun_watts,
-            distance_metres: 400.0 * EARTH_ORBIT.semi_major_axis_metres,
+            distance_metres: 400.0 * earth::ORBIT.semi_major_axis_metres,
             ecliptic_latitude_degrees: -60.0,
             ecliptic_longitude_degrees: 0.0,
             aether_watts: 0.0,
@@ -1062,8 +1062,8 @@ mod tests {
             ocean: &planet.ocean,
             sun_latitude: 0.0,
         };
-        let sky = planet.heavens.sky(EARTH_ORBIT);
-        let materials = test_materials();
+        let sky = planet.heavens.sky(earth::ORBIT);
+        let materials = earth::materials();
         let balance = EnergyBalance {
             grid: &grid,
             cell_metres: EARTH_RADIUS_METRES,

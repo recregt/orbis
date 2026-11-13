@@ -518,7 +518,7 @@ pub fn settle(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::material::{ipse, water};
+    use crate::earth::{ipse, water};
 
     const CIRCULATION: Circulation = Circulation {
         gas_spread: 0.5,

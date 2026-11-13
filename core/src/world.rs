@@ -804,11 +804,9 @@ fn quantile(values: &[f64], weights: &[f64], fraction: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::life::test_flora;
-    use crate::material::test_materials;
+    use crate::earth;
     use crate::parallel::Sequential;
     use crate::scale::SECONDS_PER_DAY;
-    use crate::sky::{EARTH_ORBIT, sun_alone};
 
     fn generate(seed: u64) -> &'static GlobalMap {
         type Worlds = std::sync::Mutex<
@@ -822,7 +820,12 @@ mod tests {
             .entry(seed)
             .or_insert_with(|| Box::leak(Box::default()));
         slot.get_or_init(|| {
-            spec(seed).generate(&test_materials(), &test_flora(), &sun_alone(), &Sequential)
+            spec(seed).generate(
+                &earth::materials(),
+                &earth::flora(),
+                &earth::heavens(),
+                &Sequential,
+            )
         })
     }
 
@@ -831,23 +834,7 @@ mod tests {
             seed: Seed(seed),
             width: 64,
             height: 32,
-            recipe: Recipe {
-                equator_km: 40_075.0,
-                sidereal_day_hours: 23.934,
-                orbit: EARTH_ORBIT,
-                land_fraction: 0.3,
-                continent_frequency: 2.0,
-                roughness: 0.5,
-                peak_height_metres: 6000.0,
-                deepest_metres: 11_000.0,
-                weather_systems_around: 16.0,
-                weather_celsius: 6.0,
-                climate_downscale: 4,
-                salt_residence_years: 13.0e6,
-                eddy_diffusivity_m2_per_s: 1.0e6,
-                ipse_age_days: 3.6,
-                ipse_mean_amount: 10.0,
-            },
+            recipe: earth::recipe(),
         }
     }
 
@@ -907,7 +894,12 @@ mod tests {
     fn a_slower_spinning_planet_has_wider_tropical_cells() {
         let mut slow = spec(3);
         slow.recipe.sidereal_day_hours *= 3.0;
-        let slow_map = slow.generate(&test_materials(), &test_flora(), &sun_alone(), &Sequential);
+        let slow_map = slow.generate(
+            &earth::materials(),
+            &earth::flora(),
+            &earth::heavens(),
+            &Sequential,
+        );
         assert!(slow_map.belts.hadley_edge > generate(3).belts.hadley_edge);
     }
 
@@ -916,7 +908,7 @@ mod tests {
         let coupling = &generate(3).coupling;
         let answered = wind::surface_wind_metres_per_second(wind::ground_friction_w_per_m2(
             coupling.atmosphere_work_w_per_m2,
-            &test_materials().air,
+            &earth::materials().air,
         ));
         let gap = (answered - coupling.wind_metres_per_second).abs() / answered;
         assert!(
@@ -929,7 +921,7 @@ mod tests {
     #[test]
     fn the_climate_runs_for_one_orbit() {
         let map = generate(3);
-        let year = sun_alone().sky(EARTH_ORBIT).year_seconds() / SECONDS_PER_DAY;
+        let year = earth::heavens().sky(earth::ORBIT).year_seconds() / SECONDS_PER_DAY;
         let days = map.climate_scale.days(map.climate_steps);
         assert!(days >= year);
         assert!(map.climate_scale.days(map.climate_steps - 1) < year);
@@ -937,7 +929,7 @@ mod tests {
 
     #[test]
     fn sea_ice_forms_exactly_where_sea_water_freezes() {
-        let materials = test_materials();
+        let materials = earth::materials();
         let map = generate(5);
         let mut frozen = 0;
         for cell in map
@@ -956,7 +948,7 @@ mod tests {
 
     #[test]
     fn salt_lowers_the_freezing_point_of_the_sea() {
-        let materials = test_materials();
+        let materials = earth::materials();
         let sea = |salinity_grams_per_kg| Surroundings {
             terrain: Terrain::Ocean { depth: 0.5 },
             celsius: -1.0,
@@ -970,8 +962,8 @@ mod tests {
 
     #[test]
     fn land_stays_icebound_only_where_even_summer_freezes() {
-        let materials = test_materials();
-        let flora = test_flora();
+        let materials = earth::materials();
+        let flora = earth::flora();
         let land = |summer_celsius| Surroundings {
             terrain: Terrain::Land { height: 0.5 },
             celsius: -5.0,
@@ -1008,7 +1000,7 @@ mod tests {
 
     #[test]
     fn bare_land_carries_the_tallest_plant_that_survives_there() {
-        let flora = test_flora();
+        let flora = earth::flora();
         let map = generate(11);
         let mut covered = 0;
         for cell in land(map).filter(|c| c.cover != Cover::Ice) {

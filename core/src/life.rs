@@ -16,6 +16,13 @@ pub struct Tolerance {
 }
 
 impl Tolerance {
+    pub const fn above(min: f64) -> Self {
+        Self {
+            min: Some(min),
+            max: None,
+        }
+    }
+
     pub fn admits(&self, value: f64) -> bool {
         self.min.is_none_or(|min| value >= min) && self.max.is_none_or(|max| value <= max)
     }
@@ -151,40 +158,9 @@ pub(crate) fn plant(name: &str, height_metres: f64, thrives: Thrives) -> Plant {
 }
 
 #[cfg(test)]
-pub(crate) fn above(min: f64) -> Tolerance {
-    Tolerance {
-        min: Some(min),
-        max: None,
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn test_flora() -> Flora {
-    Flora::new(alloc::vec![
-        plant(
-            "grass",
-            0.5,
-            Thrives {
-                celsius: above(-5.0),
-                ..Thrives::default()
-            }
-        ),
-        plant(
-            "tree",
-            20.0,
-            Thrives {
-                celsius: above(0.0),
-                water_mm_per_year: above(500.0),
-                ..Thrives::default()
-            }
-        ),
-    ])
-    .unwrap_or_else(|errors| panic!("test flora is valid: {errors:?}"))
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::earth;
 
     fn site(celsius: f64, water_mm_per_year: f64) -> Site {
         Site {
@@ -196,7 +172,7 @@ mod tests {
 
     #[test]
     fn the_tallest_plant_that_survives_wins() {
-        let flora = test_flora();
+        let flora = earth::flora();
         assert_eq!(flora.dominant(&site(15.0, 800.0)), Some(1));
         assert_eq!(flora.dominant(&site(15.0, 200.0)), Some(0));
         assert_eq!(flora.dominant(&site(-10.0, 800.0)), None);

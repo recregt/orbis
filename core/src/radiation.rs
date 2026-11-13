@@ -155,7 +155,7 @@ pub fn column_from(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::material::{air, water};
+    use crate::earth::{air, water};
 
     const EARTH_CELSIUS: f64 = 288.0 - KELVIN_AT_ZERO_CELSIUS;
     const EARTH_TO_SPACE_W_PER_M2: f64 = 239.0;

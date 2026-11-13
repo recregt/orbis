@@ -246,40 +246,16 @@ pub fn daily_insolation(sunlight: Sunlight, latitude_north: f64) -> f64 {
 }
 
 #[cfg(test)]
-pub(crate) fn sun() -> Star {
-    Star {
-        name: "sun".into(),
-        luminosity_watts: 3.828e26,
-        mass_kg: 1.988_47e30,
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn sun_alone() -> Heavens {
-    Heavens {
-        star: sun(),
-        companions: Vec::new(),
-    }
-}
-
-#[cfg(test)]
-pub(crate) const EARTH_ORBIT: Orbit = Orbit {
-    semi_major_axis_metres: 1.495_978_707e11,
-    eccentricity: 0.0167,
-    axial_tilt_degrees: 23.44,
-    sun_longitude_at_perihelion_degrees: 282.9,
-};
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::earth::{self, sun};
 
     const DAY: f64 = 86_400.0;
 
     fn earth(star: &Star) -> Sky<'_> {
         Sky {
             star,
-            orbit: EARTH_ORBIT,
+            orbit: earth::ORBIT,
             companions: &[],
         }
     }
