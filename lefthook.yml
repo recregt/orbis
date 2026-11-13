@@ -1,0 +1,20 @@
+remotes:
+  - git_url: https://github.com/recregt/commitlint
+    ref: v2.0.1
+    configs:
+      - lefthook-remote.yml
+
+pre-commit:
+  commands:
+    fmt:
+      glob: "*.rs"
+      run: cargo fmt --all --check
+
+pre-push:
+  commands:
+    no-std:
+      run: cargo build -q --lib --target x86_64-unknown-none
+    clippy:
+      run: cargo clippy --all-targets -- -D warnings -F clippy::allow_attributes_without_reason
+    test:
+      run: cargo test -q --no-fail-fast

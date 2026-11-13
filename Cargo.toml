@@ -1,0 +1,20 @@
+[package]
+name = "orbis"
+description = "Pure, deterministic planet simulation"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99.1"
+publish = false
+
+[dependencies]
+libm = "0.2.16"
+serde = { version = "1.0.229", default-features = false, features = ["alloc", "derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.154"
+
+[lints.clippy]
+self_named_module_files = "deny"
+
+[profile.dev]
+opt-level = 3
