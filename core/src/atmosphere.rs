@@ -15,6 +15,7 @@ use crate::scale::{
 };
 use crate::wind;
 
+const PARCEL_KELVIN: f64 = 1e-6;
 pub const LAYERS: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -374,6 +375,9 @@ fn solve_rising(
             return (celsius, saturation);
         }
         celsius -= step;
+        if step.abs() < PARCEL_KELVIN {
+            return (celsius, water.saturation(celsius));
+        }
         last_step = step.abs();
     }
 }
